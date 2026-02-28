@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "arxiv": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "tool", "run",
+        "arxiv-mcp-server",
+        "--storage-path", ".claude/papers"
+      ]
+    },
+    "semantic-scholar": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run", "--with",
+        "git+https://github.com/FujishigeTemma/semantic-scholar-mcp",
+        "semantic-scholar-mcp", "serve"
+      ]
+    }
+  }
+}

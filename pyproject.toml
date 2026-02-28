@@ -1,0 +1,8 @@
+[project]
+name = "barely-read"
+version = "0.1.0"
+description = "Academic research assistant framework built on LLM CLI"
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml",
+]

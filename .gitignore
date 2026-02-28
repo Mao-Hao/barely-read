@@ -1,0 +1,21 @@
+# User data
+library/papers/*.pdf
+library/notes/*.md
+library/index.yaml
+memory/*
+!memory/.gitkeep
+config/user.yaml
+
+# Session
+.session/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# MCP downloads
+.claude/papers/
+
+# OS
+.DS_Store

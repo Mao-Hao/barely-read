@@ -1,0 +1,37 @@
+# Library Index Schema
+# File: library/index.yaml
+# Managed by download/read skills. Can also be edited manually.
+#
+# Each entry is keyed by paper_id (arxiv ID).
+# Example:
+#
+# papers:
+#   "2401.12345":
+#     title: "Example Paper Title"
+#     authors: ["Alice", "Bob"]
+#     year: 2024
+#     doi: "10.1234/example"
+#     url: "https://arxiv.org/abs/2401.12345"
+#     tags: ["symbolic-regression", "physics"]
+#     status: read
+#     pdf_path: "library/papers/2401.12345.pdf"
+#     note_path: "library/notes/2401.12345.md"
+#     added_date: "2026-02-28"
+#     read_date: "2026-02-28"
+
+# --- Schema Definition ---
+
+papers:
+  # Key: paper_id (string, e.g. "2401.12345")
+  _schema:
+    title: ""              # (required) paper title
+    authors: []            # (required) list of author names
+    year: 0                # (required) publication year
+    doi: ""                # (optional) DOI
+    url: ""                # (required) arxiv or source URL
+    tags: []               # (optional) topic tags for search/filter
+    status: "downloaded"   # downloaded | read | annotated
+    pdf_path: ""           # (required) relative path to PDF
+    note_path: ""          # (required) relative path to note
+    added_date: ""         # (auto) ISO date when paper was added
+    read_date: ""          # (auto) ISO date when deep-read was done
