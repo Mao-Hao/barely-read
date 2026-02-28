@@ -2,114 +2,95 @@
 name: br-explain
 description: "Explain an academic concept tailored to user's research background and preferences"
 disable-model-invocation: false
-argument-hint: "[concept or term]"
+argument-hint: "[concept or question]"
 ---
 
-# /br-explain — 概念讲解
+# /br-explain — Concept Explainer
+
+## What This Skill Adds
+
+Claude is already great at explaining things. This skill adds:
+- **User context**: load research background from profile for personalized explanations
+- **Library linking**: find and reference related papers from the user's own library
+
+That's it. Don't constrain how Claude explains — just give it context and let it teach.
 
 ## Input
 
-- `$ARGUMENTS`: 要讲解的概念、术语或方法名
-- `config/user.yaml`: 用户背景和讲解偏好
-- `library/notes/`: 已有论文笔记（可选，用于关联具体论文）
+The user may ask about anything in any form:
+
+- Specific term: "variational inference", "KL divergence"
+- Question from a paper: "what does the loss in eq.3 actually do?"
+- Comparison: "what's the difference between LSTM and Transformer?"
+- Vague: "I don't get the regularization part"
+- Broad topic: "reinforcement learning" → ask which aspect they want to understand
+- Research connection: "could this method work for my research?"
+
+**Core principle**: Understand what the user wants to learn. Use their background and current context to explain it well. Don't be a dictionary — be a teacher.
+
+## Context
+
+- `config/user.yaml`: user's background, explanation preferences (depth, math, language)
+- `library/notes/`: existing paper notes (for linking related papers)
+- Conversation context (papers being discussed, previous explanations)
 
 ## Steps
 
-### 1. 加载用户上下文
+### 1. Understand the Question + Load Context
 
-读取 `config/user.yaml`：
-- `explanation.depth`: 讲解详细程度（brief / standard / detailed）
-- `explanation.include_math`: 是否包含数学公式
-- `explanation.level`: 假设的知识水平
-- `explanation.language`: 输出语言
-- `research.area`: 研究方向（用于关联说明）
+Read `config/user.yaml` (if missing, use defaults: detailed, include_math, graduate, en):
+- Research area, explanation depth, math preference, language
 
-如果 config 不存在，使用默认值（detailed, include_math, graduate, zh）。
+Determine what to explain:
+- If referencing current conversation (a paper, a concept just mentioned), use that context
+- If too broad, ask briefly which aspect they care about
 
-### 2. 搜索 Library 关联
+### 2. Search Library for Related Papers
 
-在 `library/notes/` 中搜索与该概念相关的论文笔记：
-- 使用 Grep 工具搜索 $ARGUMENTS 关键词
-- 如果找到相关论文，记录 paper_id 和相关段落
+Search `library/notes/` for papers related to the concept:
+- Grep for keywords
+- If found, note paper_id and relevant passages for reference
 
-### 3. 生成讲解
+### 3. Explain
 
-根据用户偏好生成讲解，结构如下：
+**Explain naturally. Adapt to the concept and the user's level.** Don't force a rigid structure. Some concepts need an analogy first. Some need a formal definition. Some need a worked example. Match your approach to what works best.
 
-**Brief 模式**（~100 字）：
-```
-## {概念}
-一段话定义 + 核心直觉。
-```
+Guidance (not a template):
+- Start with intuition — why does this concept exist? What problem does it solve?
+- Give precision where needed — definitions, formulas (if user wants math)
+- Connect to the user's research — how is this relevant to what they do?
+- Reference library papers if found in Step 2
 
-**Standard 模式**（~300 字）：
-```
-## {概念}
+### 4. Link Related Papers
 
-### 直觉
-用类比或日常语言解释核心思想。
-
-### 定义
-精确的定义。如果 include_math=true，包含数学表达。
-
-### 为什么重要
-在用户研究领域中的意义。
-```
-
-**Detailed 模式**（~500+ 字）：
-```
-## {概念}
-
-### 直觉
-用类比或日常语言解释核心思想。
-
-### 形式化定义
-精确定义 + 数学表达（如适用）。
-
-### 关键性质
-重要特征、定理、或推论。
-
-### 与相关概念的关系
-与相近/相对概念的对比。
-
-### 在你的研究中
-结合用户的研究方向，说明该概念如何与其研究相关。
-
-### 参考论文
-列出 library 中涉及该概念的论文（如有）。
-```
-
-### 4. 关联已有论文
-
-如果 Step 2 找到了相关笔记，在讲解中引用：
+If Step 2 found related notes:
 
 ```
-### 参考论文（来自你的 Library）
-- [{title}](library/notes/{id}.md): {该论文如何使用/讨论这个概念}
+Related papers in your library:
+- [{title}](library/notes/{id}.md): {how this paper uses/discusses the concept}
 ```
 
-### 5. 输出
+### 5. Output
 
-直接输出讲解内容到终端（不写入文件）。
+Print explanation to terminal (no file writes).
 
-末尾提示：
+End with:
 ```
 ---
-想深入了解？比如：
-  "再详细讲讲"
-  "举个例子"
-  "搜一下相关论文"
+Want to go deeper? For example:
+  "Explain more"
+  "Give me an example"
+  "Search for related papers"
 ```
 
 ## Output
 
-- 终端输出：结构化讲解
-- 无文件写入（讲解是即时操作）
+- Terminal: explanation
+- No file writes (explanations are ephemeral)
 
 ## Error Handling
 
-- $ARGUMENTS 为空 → 提示输入要讲解的概念
-- 概念过于宽泛 → 询问用户想了解哪个方面
-- config 不存在 → 使用默认偏好，讲完后建议先配置 profile
+- Overly broad concept → ask which aspect to focus on
+- config missing → use defaults, suggest /br-init after
 
 ARGUMENTS: $ARGUMENTS

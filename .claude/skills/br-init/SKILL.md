@@ -5,59 +5,71 @@ disable-model-invocation: false
 argument-hint: ""
 ---
 
-# /br-init — 首次使用引导
+# /br-init — First-Time Setup
 
 ## Input
 
-- 无参数。交互式引导。
-- 如果 `config/user.yaml` 已存在，提示用户选择：重新配置 / 保留现有。
+Usually no arguments — interactive guided setup. But the user may provide info upfront:
+
+- "I'm a PhD student working on NLP, focusing on LLM alignment" → extract profile, only confirm/fill gaps
+- No arguments → guide step by step
+
+If `config/user.yaml` already exists, ask: reconfigure / keep / modify specific items.
 
 ## Steps
 
-### 1. 欢迎 + 研究 Profile
+### 1. Welcome + Research Profile
 
-向用户询问以下信息（逐项，不要一次全问）：
+Collect the following. Adapt your approach based on how much the user provides at once — don't mechanically ask one by one if they've already told you everything.
 
-```
-欢迎使用 Barely Read!
+Information needed:
+- Research area
+- Specific topics of interest
+- Common search keywords
+- Career stage (undergrad / master / PhD / postdoc / faculty / industry)
 
-请告诉我你的研究方向：
-> [用户输入]
-
-你最关注的具体 topics（逗号分隔）：
-> [用户输入]
-
-常用搜索关键词（逗号分隔）：
-> [用户输入]
-
-你目前的阶段：
-  1. 本科生
-  2. 硕士
-  3. 博士 (默认)
-  4. 博后
-  5. 教职
-  6. 业界
-```
-
-### 2. 解释偏好
+Guided prompts (only use when user hasn't provided info proactively):
 
 ```
-论文讲解的详细程度：
-  1. 简要（要点即可）
-  2. 标准
-  3. 详细（含推导过程）(默认)
+Welcome to Barely Read!
 
-是否包含数学公式？ [Y/n]
+What's your research area?
+> [user input]
 
-首选语言：
+Specific topics you care about (comma-separated):
+> [user input]
+
+Common search keywords (comma-separated):
+> [user input]
+
+Your current stage:
+  1. Undergrad
+  2. Master's
+  3. PhD (default)
+  4. Postdoc
+  5. Faculty
+  6. Industry
+```
+
+### 2. Explanation Preferences
+
+```
+Paper explanation depth:
+  1. Brief (key points only)
+  2. Standard
+  3. Detailed (with derivations) (default)
+
+Include math formulas? [Y/n]
+
+Preferred language:
   1. English (default)
   2. 中文
   3. Mixed
 ```
 
-### 3. 创建目录结构
+### 3. Create Directories
 
-检查并创建以下目录（如不存在）：
+Check and create if missing:
 
 ```
 library/papers/
@@ -66,52 +78,52 @@ memory/
 config/
 ```
 
-### 4. 检测 MCP Servers
+### 4. Detect MCP Servers
 
-依次检测以下 MCP servers 的可用性：
+Test availability of each MCP server:
 
-- **arxiv** — 尝试调用 `search_papers` 搜索 "test"
-- **semantic-scholar** — 尝试调用 `search_paper` 搜索 "test"
-- **zotero** — 尝试调用 `zotero_search_items` 搜索 "test"
+- **arxiv** — call `search_papers` with "test"
+- **semantic-scholar** — call `search_paper` with "test"
+- **zotero** — call `zotero_search_items` with "test"
 
-输出检测结果：
-
-```
-MCP Servers 检测：
-  arxiv            ✓ 可用
-  semantic-scholar ✓ 可用
-  zotero           ✓ 可用 / ✗ 不可用（非必需）
-```
-
-### 5. 生成配置文件
-
-读取 `src/config/defaults.yaml` 作为模板，用用户输入填充字段，写入 `config/user.yaml`。
-
-### 6. 输出欢迎摘要
+Output results:
 
 ```
-BR 初始化完成！
+MCP Servers:
+  arxiv            ✓ available
+  semantic-scholar ✓ available
+  zotero           ✓ available / ✗ unavailable (optional)
+```
 
-研究方向: {area}
-关注领域: {topics}
-解释偏好: {depth}, {language}
+### 5. Generate Config
 
-你可以：
-  /br-search [query]     搜索论文
-  /br-download [paper]   下载论文
-  /br-read [paper]       让我给你讲一篇论文
-  /br-explain [concept]  讲解一个概念
+Read `src/config/defaults.yaml` as template, fill with user input, write to `config/user.yaml`.
 
-试试看？比如告诉我你想搜什么论文。
+### 6. Welcome Summary
+
+```
+BR setup complete!
+
+Research area: {area}
+Topics: {topics}
+Preferences: {depth}, {language}
+
+You can:
+  /br-search [query]     search papers
+  /br-download [paper]   download a paper
+  /br-read [paper]       walk through a paper with me
+  /br-explain [concept]  explain a concept
+
+Try it out — tell me what you'd like to search for.
 ```
 
 ## Output
 
-- `config/user.yaml` — 用户配置文件
-- 终端输出：欢迎摘要 + 可用命令
+- `config/user.yaml` — user config file
+- Terminal: welcome summary + available commands
 
 ## Error Handling
 
-- MCP server 不可用 → 警告但不阻塞初始化（标记不可用，相关 skill 会降级处理）
-- `config/user.yaml` 已存在 → 询问是否覆盖
-- 用户跳过某项 → 使用 defaults.yaml 中的默认值
+- MCP server unavailable → warn but don't block init (mark unavailable, skills degrade gracefully)
+- `config/user.yaml` exists → ask whether to overwrite
+- User skips an item → use defaults from defaults.yaml

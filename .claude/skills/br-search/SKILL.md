@@ -5,90 +5,109 @@ disable-model-invocation: false
 argument-hint: "[query]"
 ---
 
-# /br-search — 论文搜索
+# /br-search — Paper Search
+
+## What This Skill Adds
+
+Claude can already call arxiv and Semantic Scholar individually. This skill's real value:
+- **Dual-source parallel search** with merge and dedup
+- **Personalized ranking** using the user's research profile
+- **Relevance annotations** explaining why each paper matters to the user
 
 ## Input
 
-- `$ARGUMENTS`: 自然语言查询（如 "symbolic regression for physics"）
-- `config/user.yaml`: 用户研究方向和搜索偏好
+The user may express search intent in any form:
+
+- Specific query: "multi-agent reinforcement learning"
+- Vague direction: "what's new in my field lately"
+- Context-based: "search for papers related to what we just discussed"
+- With constraints: "after 2024", "highly cited", "more theoretical"
+- Multi-topic: "find papers on both X and Y"
+- No arguments: use `config/user.yaml` research topics/keywords to search proactively
+
+**Core principle**: Figure out what the user wants to find. Construct good queries. Don't demand perfect search terms.
+
+## Context
+
+- `config/user.yaml`: research area, keywords, search preferences
+- Conversation context (papers, concepts mentioned earlier)
 
 ## Steps
 
-### 1. 解析查询意图
+### 1. Understand Search Intent
 
-从用户的自然语言查询中提取：
-- **关键词**: 核心搜索词
-- **时间范围**: 如提及 "recent" / "2024" 等，映射为日期过滤；否则使用 `config/user.yaml` 中 `search.default_years_back`
-- **领域**: 如提及具体领域，根据用户输入推断对应的 arxiv categories（如 physics.comp-ph, q-bio.BM, econ.TH 等，不限于 CS）
+Infer from the user's expression:
+- **What to search**: keywords, topics. If vague, supplement with profile from `config/user.yaml`.
+- **Time range**: if mentioned; otherwise use `search.default_years_back`.
+- **Domain**: infer arxiv categories if a specific field is mentioned (not limited to CS).
+- **Quantity**: how many results? Default: `search.max_results`.
 
-如果 $ARGUMENTS 为空，提示用户输入查询。
+If intent is still unclear, ask one brief clarifying question (don't list format requirements).
 
-### 2. 并行搜索
+### 2. Parallel Search
 
-同时调用两个 MCP server：
+Call both MCP servers simultaneously:
 
 **arxiv MCP** (`search_papers`):
-- query: 提取的关键词，使用引号括住核心短语
-- categories: 如有领域信息则过滤
-- date_from: 按时间范围设置
-- max_results: `search.max_results` 的一半（默认 10）
+- query: constructed keywords, quote core phrases
+- categories: filter if domain info available
+- date_from: per time range
+- max_results: half of `search.max_results` (default 10)
 - sort_by: "relevance"
 
 **Semantic Scholar MCP** (`search_paper`):
-- query: 自然语言查询
-- limit: `search.max_results` 的一半（默认 10）
-- year: 按时间范围设置
+- query: natural language query
+- limit: half of `search.max_results` (default 10)
+- year: per time range
 - fields: "paperId,title,abstract,authors,year,citationCount,url,externalIds"
 
-### 3. 合并去重 + 排序
+For multi-topic requests, search each topic separately.
 
-1. **去重**: 基于 arxiv ID 或 DOI 匹配，保留信息更丰富的条目
-2. **排序**: 综合以下信号
-   - 与用户 `research.topics` 和 `research.keywords` 的语义相关性
-   - 引用数（来自 Semantic Scholar）
-   - 发表时间（近期加权，如用户偏好 prefer_recent）
-3. **相关性说明**: 对每篇论文生成一句话说明为何与用户研究相关
+### 3. Merge + Dedup + Rank
 
-### 4. 输出结果
+1. **Dedup**: match by arxiv ID or DOI, keep the richer entry
+2. **Rank** by:
+   - Semantic relevance to user's `research.topics` and `research.keywords`
+   - Citation count (from Semantic Scholar)
+   - Recency (weighted if user prefers recent)
+3. **Annotate**: one-sentence explanation of relevance to user's research per paper
 
-格式化为编号表格：
+### 4. Present Results
+
+Numbered table:
 
 ```
-搜索: "{query}"
-来源: arxiv + Semantic Scholar
-结果: N 篇（去重后）
+Search: "{query}"
+Sources: arxiv + Semantic Scholar
+Results: N papers (after dedup)
 
-| # | 标题 | 作者 | 年份 | 引用 | 相关性 |
-|---|------|------|------|------|--------|
-| 1 | ... | ... | 2025 | 142 | 与你的 SR 研究直接相关：... |
-| 2 | ... | ... | 2024 | 89  | 方法可借鉴：... |
-| ... |
+| # | Title | Authors | Year | Cites | Relevance |
+|---|-------|---------|------|-------|-----------|
+| 1 | ...   | ...     | 2025 | 142   | ...       |
+| 2 | ...   | ...     | 2024 | 89    | ...       |
 
-接下来你可以说：
-  "下载 #3"         下载第 3 篇
-  "#5 讲讲"         看第 5 篇的详细信息
-  "换个关键词"       重新搜索
+Want to download any of these? Or try a different search.
 ```
 
-每个结果编号在本次会话中有效，用户可直接引用。
+Result numbers are valid for the current session — user can reference them directly.
 
-### 5. 详情查询（可选）
+### 5. Detail View (optional)
 
-如果用户请求某篇论文的详情：
-- 调用 Semantic Scholar MCP (`get_paper`) 获取完整信息
-- 展示：完整摘要、所有作者、发表 venue、引用/被引数、PDF 链接
+If the user asks about a specific paper:
+- Call Semantic Scholar MCP (`get_paper`) for full info
+- Show: full abstract, all authors, venue, citation/reference counts, PDF link
 
 ## Output
 
-- 终端输出：编号结果表
-- 无文件写入（搜索是只读操作）
+- Terminal: numbered results table
+- No file writes (search is read-only)
 
 ## Error Handling
 
-- arxiv MCP 不可用 → 仅用 Semantic Scholar，提示用户
-- Semantic Scholar MCP 不可用 → 仅用 arxiv，提示用户
-- 两者都不可用 → 回退到 WebSearch 搜索 arxiv.org，提示功能受限
-- 无结果 → 建议调整关键词或放宽时间范围
-- config/user.yaml 不存在 → 跳过个性化排序，搜索完后建议先配置 profile
+- arxiv MCP unavailable → use Semantic Scholar only, inform user
+- Semantic Scholar MCP unavailable → use arxiv only, inform user
+- Both unavailable → fall back to WebSearch on arxiv.org, note limited functionality
+- No results → suggest adjusting terms or broadening time range
+- config/user.yaml missing → skip personalized ranking, suggest running /br-init after
 
 ARGUMENTS: $ARGUMENTS

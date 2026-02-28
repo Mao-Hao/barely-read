@@ -2,134 +2,124 @@
 name: br-read
 description: "Interactive paper walkthrough — AI explains the paper to you, saves notes as byproduct"
 disable-model-invocation: false
-argument-hint: "[arxiv_id | paper_path]"
+argument-hint: "[paper reference]"
 ---
 
-# /br-read — 论文讲解
+# /br-read — Paper Walkthrough
+
+## What This Skill Adds
+
+Claude can already read PDFs and explain them. This skill's real value:
+- **User context loading**: personalize explanation to user's research background
+- **Note saving**: structured notes from template on request
+- **Library integration**: track read status in index
+
+Everything else — how to explain, what structure to use, what depth — let Claude handle naturally based on the paper and the user's questions.
 
 ## Input
 
-- `$ARGUMENTS`: arxiv ID (`2401.12345`) 或文件路径
-- `config/user.yaml`: 用户研究方向和讲解偏好
-- `templates/paper-note.md`: 笔记模板（用于保存）
+The user may refer to a paper in any form:
+
+- arxiv ID: `2401.12345`
+- File path: `library/papers/xxx.pdf` or any PDF path
+- Search result: `#3`, "walk me through the third one"
+- Fuzzy: "the one I just downloaded", "that attention paper"
+- Browse library: "what haven't I read yet?"
+- No arguments: list recently downloaded but unread papers, let user pick
+
+**Core principle**: Find the paper. If it's not downloaded, offer to download it. Don't stop because of missing ID.
+
+## Context
+
+- `config/user.yaml`: user's research area, explanation preferences
+- `library/index.yaml`: paper index (PDF paths, read status)
+- `templates/paper-note.md`: note template (for saving)
+- Conversation context (search results, recently mentioned papers)
 
 ## Steps
 
-### 1. 定位论文
+### 1. Locate Paper
 
-从 $ARGUMENTS 确定 PDF 路径：
-- 如果是 arxiv ID → 查 `library/index.yaml` 获取 `pdf_path`
-- 如果是文件路径 → 直接使用
-- 如果 PDF 不存在 → 提示："这篇论文还没下载，要我帮你下载吗？"
-- 如果 $ARGUMENTS 为空 → 列出最近下载但未读的论文，用编号让用户选
+Find the PDF:
+- Exact reference → look up `library/index.yaml` for `pdf_path`
+- File path → use directly
+- Fuzzy reference → match from context or index
+- No arguments → list unread papers (status: downloaded), let user pick
+- PDF not found → "This paper isn't downloaded yet. Want me to get it?"
 
-### 2. 选择讲解方式
+### 2. Ask About Depth
+
+Before reading, briefly check what the user wants:
 
 ```
-这篇论文：{title}
-作者：{authors} ({year})
+{title}
+{authors} ({year})
 
-选择讲解方式：
-  1. 速览 — 核心结论，1-2 分钟
-  2. 标准 — 问题+方法+结果，5 分钟（默认）
-  3. 深入 — 含技术细节和推导，适合精读
+How deep should I go?
+  1. Quick overview — key findings, 1-2 min
+  2. Standard — problem, method, results, 5 min (default)
+  3. Deep dive — technical details and derivations
 ```
 
-默认使用 `config/user.yaml` 中 `explanation.depth` 对应的选项。用户输入编号选择。
+The user can pick a number or say it naturally ("just give me the gist", "I want all the details"). Default to `config/user.yaml` → `explanation.depth`.
 
-### 3. 读取 PDF + 加载上下文
+### 3. Read PDF + Load Context
 
-- 使用 Claude 原生 Read 工具读取 PDF
-- 如果论文很长，分段读取（先 abstract+intro+method，再 results+conclusion）
-- 读取 `config/user.yaml` 中的研究方向和关键词
+- Read the PDF using Claude's native Read tool
+- For long papers, read in stages (abstract+intro+method first, then results+conclusion)
+- Load user's research area and keywords from `config/user.yaml`
 
-### 4. 讲解论文（交互式）
+### 4. Explain the Paper
 
-根据选择的颗粒度讲解。**用对话语气讲，不是写学术摘要。**
+**Explain conversationally. Do NOT follow a rigid template.** Adapt your explanation to what's actually interesting and important about this specific paper. Use the user's research background to emphasize what's relevant to them.
 
-**速览模式**：
-```
-## 一句话总结
-[用直觉语言概括]
+General guidance by depth:
+- **Quick**: core contribution + key findings + relevance to user. A few paragraphs.
+- **Standard**: what problem, why it matters, how they solved it, what they found, strengths/weaknesses, relevance to user.
+- **Deep**: everything in standard + technical details (formulas with intuitive explanations), experimental design, open questions.
 
-## 核心发现
-- [3-5 个要点]
+But these are guidelines, not templates. If a paper's main contribution is a proof, focus on the proof. If it's an empirical study, focus on the experiments. Match the explanation to the paper.
 
-## 跟你的研究有什么关系
-[结合用户研究方向]
-```
+### 5. Interactive Follow-up
 
-**标准模式**：
-```
-## 这篇论文要解决什么问题？
-[用直觉语言，为什么这个问题重要]
-
-## 他们怎么做的？
-[关键方法，用用户能理解的语言]
-
-## 主要发现
-[结果 + 和之前工作的对比]
-
-## 亮点和不足
-[strengths + limitations]
-
-## 跟你的研究有什么关系
-[结合用户研究方向，可以借鉴什么]
-```
-
-**深入模式**：
-标准模式的所有内容，加上：
-```
-## 技术细节
-[关键公式/算法，用 LaTeX 写出，配有直觉解释]
-
-## 实验设计
-[数据集、baseline、评估指标的细节]
-
-## 开放问题
-[论文没解决的、后续可以做的]
-```
-
-### 5. 等待用户反馈
-
-讲完后提示（自然语言，不要用斜杠命令）：
+After the initial explanation:
 
 ```
 ---
-有什么想深入了解的吗？比如：
-  "方法部分再详细讲讲"
-  "XX 是什么意思？"
-  "跟 [另一篇论文] 比呢？"
-  "保存笔记"
-  "换一篇"
+Anything you'd like to dig into? For example:
+  "Tell me more about the method"
+  "What does XX mean?"
+  "How does this compare to [another paper]?"
+  "Save notes"
+  "Next paper"
 ```
 
-用户可以：
-- 追问任何部分 → AI 直接在当前上下文中回答
-- 说"保存笔记" → 执行 Step 6
-- 说"换一篇" / 给新 paper ID → 从 Step 1 重新开始
-- 直接开始下一个话题 → 自然退出
+The user can:
+- Ask follow-up questions → answer in current context
+- Say "save notes" → execute Step 6
+- Move on to another paper → restart from Step 1
+- Change topic → exit naturally
 
-### 6. 保存笔记（用户请求时）
+### 6. Save Notes (on request)
 
-当用户说"保存笔记"、"存一下"等：
+When the user says "save notes", "save this", etc.:
 
-1. 将讲解内容整理为 `templates/paper-note.md` 格式
-2. 填充 frontmatter（paper_id, title, authors, year, status: read, tags）
-3. 写入 `library/notes/{arxiv_id}.md`
-4. 更新 `library/index.yaml`（status: read, read_date, tags）
-5. 确认："笔记已保存到 library/notes/{arxiv_id}.md"
+1. Organize the explanation into `templates/paper-note.md` format
+2. Fill frontmatter (paper_id, title, authors, year, status: read, tags)
+3. Write to `library/notes/{arxiv_id}.md`
+4. Update `library/index.yaml` (status: read, read_date, tags)
+5. Confirm: "Notes saved to library/notes/{arxiv_id}.md"
 
 ## Output
 
-- 终端输出：交互式论文讲解
-- `library/notes/{arxiv_id}.md` — 笔记（仅用户请求时保存）
-- `library/index.yaml` — 更新（仅保存笔记时）
+- Terminal: interactive paper walkthrough
+- `library/notes/{arxiv_id}.md` — notes (only when user requests)
+- `library/index.yaml` — updated (only when saving notes)
 
 ## Error Handling
 
-- PDF 不存在 → 提议帮用户下载（自然语言）
-- PDF 无法读取 → 报错，建议重新下载
-- config/user.yaml 不存在 → 使用默认偏好，讲完后建议配置 profile
+- PDF not found → offer to download
+- PDF unreadable → report error, suggest re-download
+- config/user.yaml missing → use default preferences, suggest /br-init after
 
 ARGUMENTS: $ARGUMENTS

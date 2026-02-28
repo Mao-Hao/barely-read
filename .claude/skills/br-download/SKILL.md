@@ -2,69 +2,89 @@
 name: br-download
 description: "Download a paper PDF and add it to the library with stub note and index entry"
 disable-model-invocation: false
-argument-hint: "[arxiv_id | arxiv_url | #search_result_number]"
+argument-hint: "[paper reference]"
 ---
 
-# /br-download — 论文下载入库
+# /br-download — Download & Catalog
+
+## What This Skill Adds
+
+Claude can already call `download_paper`. This skill's real value:
+- **Library management**: consistent file paths, stub notes from template, index tracking
+- **Batch support**: download multiple papers in one request
+- **Smart resolution**: figure out which paper the user means from any reference
 
 ## Input
 
-- `$ARGUMENTS`: 以下任一格式
-  - arxiv ID: `2401.12345`
-  - arxiv URL: `https://arxiv.org/abs/2401.12345`
-  - 搜索结果编号: `#3`（引用上次 /br-search 的结果）
-- `config/user.yaml`: 用户配置（可选，用于笔记模板填充）
+The user may specify papers in any form:
+
+- arxiv ID: `2401.12345`
+- URL: `https://arxiv.org/abs/2401.12345`
+- Search result reference: `#3`, "download the third one"
+- Title/keyword: "that attention paper"
+- Batch: "download the top 3", "download all of them"
+- Fuzzy: "the one with the most citations", "download that one too"
+- Discovery: "download some good papers on X" (search first, then download)
+- No arguments: if context has obvious candidates (e.g., just searched), ask which ones
+
+**Core principle**: Figure out what paper(s) the user wants. Search if needed. Don't reject because of format.
+
+## Context
+
+- `config/user.yaml`: user config (for note template)
+- `library/index.yaml`: existing paper index
+- Conversation context (search results, mentioned papers)
 
 ## Steps
 
-### 1. 解析 paper ID
+### 1. Resolve Paper(s)
 
-从 $ARGUMENTS 提取 arxiv ID：
-- 如果是 URL，提取 ID 部分
-- 如果是 `#N`，从上次搜索结果中查找对应论文
-- 如果为空，提示用户输入
+Determine one or more arxiv IDs:
+- Exact reference → extract ID directly
+- Search result reference → look up from session context
+- Fuzzy reference → infer from context, confirm if ambiguous
+- Discovery request → search first, select top results, tell user what you picked
+- Batch → resolve each, execute steps 2-6 for each paper
 
-### 2. 检查是否已下载
+### 2. Check Existing
 
-读取 `library/index.yaml`（如存在），检查该 paper_id 是否已存在：
-- 已存在 → 提示用户，询问是否重新下载
-- 不存在 → 继续
+Read `library/index.yaml` (if exists), check if paper_id already present:
+- Exists → tell user, ask whether to re-download
+- New → continue
 
-### 3. 获取元数据
+### 3. Fetch Metadata
 
-调用 arxiv MCP (`search_papers`) 或 Semantic Scholar MCP (`get_paper`) 获取论文元数据：
+Call arxiv MCP (`search_papers`) or Semantic Scholar MCP (`get_paper`):
 - title, authors, year, abstract, doi, url
 
-### 4. 下载 PDF
+### 4. Download PDF
 
-调用 arxiv MCP (`download_paper`) 下载论文。
+Call arxiv MCP (`download_paper`).
 
-MCP 会将文件存储在其管理目录中。下载完成后，使用 Bash 工具将 PDF 复制到 `library/papers/{arxiv_id}.pdf`：
-
+Copy from MCP storage to library:
 ```bash
 cp .claude/papers/{arxiv_id}.pdf library/papers/{arxiv_id}.pdf
 ```
 
-如果 MCP 下载失败，尝试直接用 Bash 下载：
+Fallback if MCP download fails:
 ```bash
 curl -L -o library/papers/{arxiv_id}.pdf https://arxiv.org/pdf/{arxiv_id}.pdf
 ```
 
-### 5. 创建 Stub 笔记
+### 5. Create Stub Note
 
-读取 `src/templates/paper-note.md` 模板，填充已知元数据字段：
+Read `src/templates/paper-note.md`, fill metadata fields:
 - paper_id, title, authors, year, url, doi
 - status: stub
-- created: 当前日期
-- tags: 从 abstract 中提取 2-3 个关键词
+- created: today's date
+- tags: 2-3 keywords extracted from abstract
 
-写入 `library/notes/{arxiv_id}.md`。
+Write to `library/notes/{arxiv_id}.md`.
 
-### 6. 更新 Index
+### 6. Update Index
 
-调用 `uv run src/tools/update_index.py` 更新 `library/index.yaml`，或直接用 Read + Write 工具操作 YAML：
+Update `library/index.yaml` (via `uv run src/tools/update_index.py` or direct Read+Write):
 
-添加条目：
 ```yaml
 papers:
   "{arxiv_id}":
@@ -77,32 +97,43 @@ papers:
     status: downloaded
     pdf_path: "library/papers/{arxiv_id}.pdf"
     note_path: "library/notes/{arxiv_id}.md"
-    added_date: "2026-02-28"
+    added_date: "YYYY-MM-DD"
     read_date: ""
 ```
 
-### 7. 输出确认
+### 7. Confirm
 
+Single paper:
 ```
-已下载: {title}
-作者: {authors}
+Downloaded: {title}
+Authors: {authors}
 PDF: library/papers/{arxiv_id}.pdf
 
-要我讲讲这篇论文吗？或者继续下载其他的。
+Want me to walk you through this paper? Or download more.
+```
+
+Batch:
+```
+Downloaded N papers:
+  1. {title_1}
+  2. {title_2}
+  ...
+
+Want me to walk you through any of them?
 ```
 
 ## Output
 
-- `library/papers/{arxiv_id}.pdf` — 论文 PDF
-- `library/notes/{arxiv_id}.md` — stub 笔记（元数据已填，内容待 deep-read）
-- `library/index.yaml` — 更新的索引
+- `library/papers/{arxiv_id}.pdf` — paper PDF
+- `library/notes/{arxiv_id}.md` — stub note (metadata filled, content pending)
+- `library/index.yaml` — updated index
 
 ## Error Handling
 
-- arxiv MCP 不可用 → 回退到 curl 直接下载
-- PDF 下载失败 → 报错，不创建 index 条目
-- paper 已存在 → 询问是否覆盖
-- index.yaml 不存在 → 创建新文件
-- $ARGUMENTS 无法解析为 paper ID → 提示用法
+- arxiv MCP unavailable → fall back to curl
+- PDF download failed → report error, don't create index entry
+- Paper already exists → ask whether to overwrite
+- index.yaml missing → create new file
+- Batch partial failure → report successes and failures, keep successful ones
 
 ARGUMENTS: $ARGUMENTS
