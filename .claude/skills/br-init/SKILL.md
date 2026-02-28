@@ -96,13 +96,13 @@ BR 初始化完成！
 关注领域: {topics}
 解释偏好: {depth}, {language}
 
-可用命令：
+你可以：
   /br-search [query]     搜索论文
   /br-download [paper]   下载论文
-  /br-read [paper]       深度阅读
-  /br-explain [concept]  概念讲解
+  /br-read [paper]       让我给你讲一篇论文
+  /br-explain [concept]  讲解一个概念
 
-开始试试：/br-search "{第一个 keyword}"
+试试看？比如告诉我你想搜什么论文。
 ```
 
 ## Output

@@ -87,10 +87,8 @@ papers:
 已下载: {title}
 作者: {authors}
 PDF: library/papers/{arxiv_id}.pdf
-笔记: library/notes/{arxiv_id}.md (stub)
 
-下一步：
-  /br-read {arxiv_id}    深度阅读，生成完整笔记
+要我讲讲这篇论文吗？或者继续下载其他的。
 ```
 
 ## Output

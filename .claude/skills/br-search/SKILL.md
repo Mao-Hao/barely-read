@@ -64,13 +64,13 @@ argument-hint: "[query]"
 | 2 | ... | ... | 2024 | 89  | 方法可借鉴：... |
 | ... |
 
-下一步：
-  /br-download [#编号]    下载论文
-  /br-search [新查询]     换一个查询
-  "详情 #3"               查看第 3 篇的摘要和详细信息
+接下来你可以说：
+  "下载 #3"         下载第 3 篇
+  "#5 讲讲"         看第 5 篇的详细信息
+  "换个关键词"       重新搜索
 ```
 
-每个结果编号在本次会话中有效，供 download skill 引用。
+每个结果编号在本次会话中有效，用户可直接引用。
 
 ### 5. 详情查询（可选）
 
@@ -89,6 +89,6 @@ argument-hint: "[query]"
 - Semantic Scholar MCP 不可用 → 仅用 arxiv，提示用户
 - 两者都不可用 → 回退到 WebSearch 搜索 arxiv.org，提示功能受限
 - 无结果 → 建议调整关键词或放宽时间范围
-- config/user.yaml 不存在 → 跳过个性化排序，提示先运行 /br-init
+- config/user.yaml 不存在 → 跳过个性化排序，搜索完后建议先配置 profile
 
 ARGUMENTS: $ARGUMENTS

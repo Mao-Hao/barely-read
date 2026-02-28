@@ -95,10 +95,10 @@ argument-hint: "[concept or term]"
 末尾提示：
 ```
 ---
-想深入了解？
-  "更详细"         切换到 detailed 模式重新讲解
-  "举个例子"       用具体例子说明
-  /br-search "{概念}" 搜索相关论文
+想深入了解？比如：
+  "再详细讲讲"
+  "举个例子"
+  "搜一下相关论文"
 ```
 
 ## Output
@@ -110,6 +110,6 @@ argument-hint: "[concept or term]"
 
 - $ARGUMENTS 为空 → 提示输入要讲解的概念
 - 概念过于宽泛 → 询问用户想了解哪个方面
-- config 不存在 → 使用默认偏好，提示运行 /br-init
+- config 不存在 → 使用默认偏好，讲完后建议先配置 profile
 
 ARGUMENTS: $ARGUMENTS
