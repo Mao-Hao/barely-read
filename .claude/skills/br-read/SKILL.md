@@ -63,9 +63,11 @@ How deep should I go?
 
 The user can pick a number or say it naturally ("just give me the gist", "I want all the details"). Default to `config/user.yaml` → `explanation.depth`.
 
-### 3. Read PDF + Load Context
+### 3. Read Paper + Load Context
 
-- Read the PDF using Claude's native Read tool
+- Check if `library/papers/{id}.md` exists (markdown version, converted from LaTeX source)
+  - If yes → read the markdown (faster, fewer tokens, more accurate)
+  - If no → read the PDF using Claude's native Read tool
 - For long papers, read in stages (abstract+intro+method first, then results+conclusion)
 - Load user's research area and keywords from `config/user.yaml`
 

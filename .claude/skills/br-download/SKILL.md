@@ -57,7 +57,9 @@ Read `library/index.yaml` (if exists), check if paper_id already present:
 Call arxiv MCP (`search_papers`) or Semantic Scholar MCP (`get_paper`):
 - title, authors, year, abstract, doi, url
 
-### 4. Download PDF
+### 4. Download PDF + Convert to Markdown
+
+**Step 4a: Download PDF**
 
 Call arxiv MCP (`download_paper`).
 
@@ -70,6 +72,14 @@ Fallback if MCP download fails:
 ```bash
 curl -L -o library/papers/{arxiv_id}.pdf https://arxiv.org/pdf/{arxiv_id}.pdf
 ```
+
+**Step 4b: Convert to Markdown (arxiv papers)**
+
+Call arxiv MCP (`read_paper`) to get the markdown version (converted from LaTeX source — much better quality than PDF parsing).
+
+Write to `library/papers/{arxiv_id}.md`.
+
+If `read_paper` fails (conversion not available), skip silently — br-read will fall back to reading the PDF directly.
 
 ### 5. Create Stub Note
 
@@ -124,7 +134,8 @@ Want me to walk you through any of them?
 
 ## Output
 
-- `library/papers/{arxiv_id}.pdf` — paper PDF
+- `library/papers/{arxiv_id}.pdf` — paper PDF (archive)
+- `library/papers/{arxiv_id}.md` — paper markdown (for reading, if conversion succeeded)
 - `library/notes/{arxiv_id}.md` — stub note (metadata filled, content pending)
 - `library/index.yaml` — updated index
 
