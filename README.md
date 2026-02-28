@@ -83,8 +83,6 @@ All follow-up interaction is natural language. You don't need to remember comman
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (CLI)
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- Python 3.12+
 - Recommended model: **Sonnet 4.6** (good balance of quality and cost). Opus 4.6 for deeper analysis.
 
 ## Install
@@ -92,16 +90,10 @@ All follow-up interaction is natural language. You don't need to remember comman
 ```bash
 git clone https://github.com/Mao-Hao/barely-read.git
 cd barely-read
-bash scripts/setup.sh
-```
-
-Then start Claude Code in the project directory:
-
-```bash
 claude
 ```
 
-Run `/br-init` to configure your research profile (field, topics, preferences).
+Then run `/br-init`. It will check dependencies (install [uv](https://docs.astral.sh/uv/) if missing), set up directories, detect MCP servers, and configure your research profile — all in one step.
 
 ## Commands
 

@@ -1,6 +1,6 @@
 ---
 name: br-init
-description: "Initialize BR environment: guided setup for research profile, directories, and MCP detection"
+description: "Initialize BR environment: dependency check, directory setup, research profile, MCP detection"
 disable-model-invocation: false
 argument-hint: ""
 ---
@@ -18,7 +18,38 @@ If `config/user.yaml` already exists, ask: reconfigure / keep / modify specific 
 
 ## Steps
 
-### 1. Welcome + Research Profile
+### 1. Check Dependencies
+
+Run these checks silently using Bash. Only report problems.
+
+**uv** (required for MCP servers and Python tools):
+```bash
+command -v uv
+```
+- If missing → tell the user: "BR needs uv (a Python package manager). Install it with:" and show: `curl -LsSf https://astral.sh/uv/install.sh | sh`. Wait for user to install, then re-check.
+- If present → continue silently.
+
+**Python dependencies** (pyyaml for index management):
+```bash
+uv sync
+```
+- Run this in the project directory. It installs dependencies from pyproject.toml.
+- If it fails, try `uv pip install pyyaml` as fallback.
+- Don't bother the user with this unless it fails.
+
+### 2. Create Directories
+
+Check and create if missing (silently, just do it):
+
+```
+library/papers/
+library/notes/
+memory/
+config/
+.claude/papers/
+```
+
+### 3. Welcome + Research Profile
 
 Collect the following. Adapt your approach based on how much the user provides at once — don't mechanically ask one by one if they've already told you everything.
 
@@ -51,7 +82,7 @@ Your current stage:
   6. Industry
 ```
 
-### 2. Explanation Preferences
+### 4. Explanation Preferences
 
 ```
 Paper explanation depth:
@@ -67,18 +98,7 @@ Preferred language:
   3. Mixed
 ```
 
-### 3. Create Directories
-
-Check and create if missing:
-
-```
-library/papers/
-library/notes/
-memory/
-config/
-```
-
-### 4. Detect MCP Servers
+### 5. Detect MCP Servers
 
 Test availability of each MCP server:
 
@@ -95,11 +115,11 @@ MCP Servers:
   zotero           ✓ available / ✗ unavailable (optional)
 ```
 
-### 5. Generate Config
+### 6. Generate Config
 
-Read `src/config/defaults.yaml` as template, fill with user input, write to `config/user.yaml`.
+Read `config/defaults.yaml` as template, fill with user input, write to `config/user.yaml`.
 
-### 6. Welcome Summary
+### 7. Welcome Summary
 
 ```
 BR setup complete!
@@ -124,6 +144,8 @@ Try it out — tell me what you'd like to search for.
 
 ## Error Handling
 
+- uv not installed → guide user through installation, don't proceed until ready
+- Python deps fail → try fallback install, warn if still failing (skills still work, just index updates may need manual handling)
 - MCP server unavailable → warn but don't block init (mark unavailable, skills degrade gracefully)
 - `config/user.yaml` exists → ask whether to overwrite
 - User skips an item → use defaults from defaults.yaml
