@@ -1,13 +1,12 @@
 """Update library/index.yaml with a new paper entry or status change.
 
 Usage:
-    uv run src/tools/update_index.py add <paper_id> --title "..." --authors "A,B" --year 2025
-    uv run src/tools/update_index.py status <paper_id> --status read
+    uv run tools/update_index.py add <paper_id> --title "..." --authors "A,B" --year 2025
+    uv run tools/update_index.py status <paper_id> --status read
 """
 
 import argparse
 import logging
-import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -18,8 +17,16 @@ logger = logging.getLogger(__name__)
 
 INDEX_PATH = Path("library/index.yaml")
 
+# Valid status values in lifecycle order
+VALID_STATUSES = ("stub", "pending_pdf", "downloaded", "read", "annotated")
+
 # Type alias for the index structure
 IndexData = dict[str, Any]
+
+
+def sanitize_paper_id(paper_id: str) -> str:
+    """Make paper_id safe for use in file paths. DOIs contain '/' which must be replaced."""
+    return paper_id.replace("/", "_")
 
 
 def _default_index() -> IndexData:
@@ -29,9 +36,16 @@ def _default_index() -> IndexData:
 def load_index() -> IndexData:
     """Load index from YAML file, or return empty index."""
     if INDEX_PATH.exists():
-        with INDEX_PATH.open() as f:
-            data: Any = yaml.safe_load(f)
+        try:
+            with INDEX_PATH.open() as f:
+                data: Any = yaml.safe_load(f)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse %s, using empty index", INDEX_PATH)
+            return _default_index()
         if isinstance(data, dict) and "papers" in data:
+            # Handle papers: (empty value) → None in YAML
+            if data["papers"] is None:
+                data["papers"] = {}
             return data  # type: ignore[no-any-return]
     return _default_index()
 
@@ -52,26 +66,51 @@ def add_paper(
     doi: str = "",
     url: str = "",
     tags: list[str] | None = None,
+    status: str = "downloaded",
 ) -> None:
-    """Add a new paper entry to the index."""
+    """Add a new paper entry to the index. Merges with existing entry if present.
+
+    Merge strategy: existing entry is the base; new values overlay non-empty fields.
+    This preserves user-customized paths, custom fields, and advanced status.
+    """
     index = load_index()
+    safe_id = sanitize_paper_id(paper_id)
 
-    if paper_id in index["papers"]:
-        logger.warning("Paper %s already exists in index, updating", paper_id)
-
-    index["papers"][paper_id] = {
+    new_fields: dict[str, Any] = {
         "title": title,
         "authors": authors,
         "year": year,
         "doi": doi,
         "url": url or f"https://arxiv.org/abs/{paper_id}",
         "tags": tags or [],
-        "status": "downloaded",
-        "pdf_path": f"library/papers/{paper_id}.pdf",
-        "note_path": f"library/notes/{paper_id}.md",
+        "status": status,
+        "pdf_path": f"library/papers/{safe_id}.pdf",
+        "note_path": f"library/notes/{safe_id}.md",
         "added_date": date.today().isoformat(),
         "read_date": "",
     }
+
+    if paper_id in index["papers"]:
+        logger.warning("Paper %s already exists in index, merging", paper_id)
+        existing = index["papers"][paper_id]
+        # Existing entry is the base — preserve all fields (including custom ones)
+        merged = dict(existing)
+        # Overlay metadata that may have been updated
+        for key in ("title", "authors", "year", "doi", "url"):
+            if new_fields.get(key):
+                merged[key] = new_fields[key]
+        # Merge tags (union)
+        if tags:
+            merged["tags"] = sorted(set(existing.get("tags", []) + tags))
+        # Don't regress status: keep the more advanced one
+        if VALID_STATUSES.index(existing.get("status", "stub")) > VALID_STATUSES.index(status):
+            pass  # keep existing status
+        else:
+            merged["status"] = status
+        # Preserve existing dates and paths (user may have customized)
+        index["papers"][paper_id] = merged
+    else:
+        index["papers"][paper_id] = new_fields
 
     save_index(index)
     logger.info("Added paper %s to index", paper_id)
@@ -82,12 +121,14 @@ def update_status(paper_id: str, *, status: str, tags: list[str] | None = None) 
     index = load_index()
 
     if paper_id not in index["papers"]:
-        logger.error("Paper %s not found in index", paper_id)
-        sys.exit(1)
+        raise KeyError(f"Paper {paper_id} not found in index")
 
     index["papers"][paper_id]["status"] = status
     if status == "read":
         index["papers"][paper_id]["read_date"] = date.today().isoformat()
+    elif status in ("stub", "pending_pdf", "downloaded"):
+        # Clear read_date on status regression to avoid stale data
+        index["papers"][paper_id]["read_date"] = ""
     if tags is not None:
         existing = index["papers"][paper_id].get("tags", [])
         index["papers"][paper_id]["tags"] = sorted(set(existing + tags))
@@ -112,12 +153,20 @@ def main() -> None:
     add_parser.add_argument("--doi", default="", help="DOI")
     add_parser.add_argument("--url", default="", help="Paper URL")
     add_parser.add_argument("--tags", default="", help="Comma-separated tags")
+    add_parser.add_argument(
+        "--status",
+        default="downloaded",
+        choices=list(VALID_STATUSES),
+        help="Initial status (default: downloaded)",
+    )
 
     # status command
     status_parser = subparsers.add_parser("status", help="Update paper status")
     status_parser.add_argument("paper_id", help="Paper ID")
     status_parser.add_argument(
-        "--status", required=True, choices=["downloaded", "read", "annotated"]
+        "--status",
+        required=True,
+        choices=list(VALID_STATUSES),
     )
     status_parser.add_argument("--tags", default="", help="Comma-separated tags to add")
 
@@ -134,12 +183,17 @@ def main() -> None:
             doi=args.doi,
             url=args.url,
             tags=tags,
+            status=args.status,
         )
     elif args.command == "status":
         status_tags: list[str] | None = (
             [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
         )
-        update_status(args.paper_id, status=args.status, tags=status_tags)
+        try:
+            update_status(args.paper_id, status=args.status, tags=status_tags)
+        except KeyError as e:
+            logger.error("%s", e)
+            raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

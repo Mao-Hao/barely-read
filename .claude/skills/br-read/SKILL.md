@@ -45,6 +45,7 @@ Find the PDF:
 - File path → use directly
 - Fuzzy reference → match from context or index
 - No arguments → list unread papers (status: downloaded), let user pick
+- Status is `pending_pdf` → the paper is tracked but the PDF isn't available (e.g., paywalled). Tell the user: "This paper's PDF hasn't been downloaded yet. You can place it at `library/papers/{id}.pdf` and I'll read it, or I can try downloading again."  Do NOT loop trying to re-download.
 - PDF not found → "This paper isn't downloaded yet. Want me to get it?"
 
 ### 2. Ask About Depth
@@ -123,5 +124,3 @@ When the user says "save notes", "save this", etc.:
 - PDF not found → offer to download
 - PDF unreadable → report error, suggest re-download
 - config/user.yaml missing → use default preferences, suggest /br-init after
-
-ARGUMENTS: $ARGUMENTS

@@ -1,6 +1,6 @@
 ---
 name: br-search
-description: "Search academic papers across arxiv and Semantic Scholar, rank by relevance to user's research"
+description: "Search academic papers across arxiv, Semantic Scholar, OpenAlex, and web, rank by relevance to user's research"
 disable-model-invocation: false
 argument-hint: "[query]"
 ---
@@ -10,7 +10,7 @@ argument-hint: "[query]"
 ## What This Skill Adds
 
 Claude can already call arxiv and Semantic Scholar individually. This skill's real value:
-- **Dual-source parallel search** with merge and dedup
+- **Multi-source search** (arxiv + Semantic Scholar + OpenAlex + web fallback) with merge and dedup
 - **Personalized ranking** using the user's research profile
 - **Relevance annotations** explaining why each paper matters to the user
 
@@ -46,7 +46,7 @@ If intent is still unclear, ask one brief clarifying question (don't list format
 
 ### 2. Parallel Search
 
-Call both MCP servers simultaneously:
+Call all search sources in parallel:
 
 **arxiv MCP** (`search_papers`):
 - query: constructed keywords, quote core phrases
@@ -61,11 +61,25 @@ Call both MCP servers simultaneously:
 - year: per time range
 - fields: "paperId,title,abstract,authors,year,citationCount,url,externalIds"
 
+**OpenAlex API** (direct HTTP via Bash, no MCP needed):
+- Endpoint: `https://api.openalex.org/works?search={query}&per_page=10&sort=relevance_score:desc`
+- No API key required, 100k requests/day
+- Response structure: results are in the `results` array (not top-level)
+- Field mapping: `display_name` (title), `authorships[].author.display_name` (authors), `publication_year`, `doi` (full URL format: `https://doi.org/...` — strip prefix for matching), `cited_by_count`, `topics` (not `concepts` — deprecated 2024), `open_access.is_oa`
+- Call strategy: **always call in parallel** with arxiv + S2 for maximum coverage. Especially valuable for non-CS fields, interdisciplinary searches, and citation analysis
+
 For multi-topic requests, search each topic separately.
+
+**Web Search Fallback**: If API results are sparse (< 3 papers) or the user's query is broad/exploratory, supplement with WebSearch:
+- Search `site:scholar.google.com "{query}"` or `site:arxiv.org "{query}"`
+- Extract paper titles and IDs from results
+- Merge into the API results before dedup
+
+This is a personal tool with low volume — web search as a supplementary source is fine.
 
 ### 3. Merge + Dedup + Rank
 
-1. **Dedup**: match by arxiv ID or DOI, keep the richer entry
+1. **Dedup**: match by arxiv ID or DOI (normalize DOIs by stripping `https://doi.org/` prefix before comparing), keep the richer entry
 2. **Rank** by:
    - Semantic relevance to user's `research.topics` and `research.keywords`
    - Citation count (from Semantic Scholar)
@@ -78,7 +92,7 @@ Numbered table:
 
 ```
 Search: "{query}"
-Sources: arxiv + Semantic Scholar
+Sources: {list sources actually used, e.g. "arxiv + Semantic Scholar + OpenAlex"}
 Results: N papers (after dedup)
 
 | # | Title | Authors | Year | Cites | Relevance |
@@ -106,8 +120,7 @@ If the user asks about a specific paper:
 
 - arxiv MCP unavailable → use Semantic Scholar only, inform user
 - Semantic Scholar MCP unavailable → use arxiv only, inform user
-- Both unavailable → fall back to WebSearch on arxiv.org, note limited functionality
+- Both unavailable → fall back to WebSearch on arxiv.org and Google Scholar, note limited functionality
 - No results → suggest adjusting terms or broadening time range
 - config/user.yaml missing → skip personalized ranking, suggest running /br-init after
-
-ARGUMENTS: $ARGUMENTS
+- No search terms available (no arguments + no config) → ask user: "What topic should I search for?"

@@ -49,6 +49,11 @@ config/
 .claude/papers/
 ```
 
+If `library/index.yaml` does not exist, create it with initial content:
+```yaml
+papers: {}
+```
+
 ### 3. Welcome + Research Profile
 
 Collect the following. Adapt your approach based on how much the user provides at once — don't mechanically ask one by one if they've already told you everything.
@@ -98,20 +103,25 @@ Preferred language:
   3. Mixed
 ```
 
-### 5. Detect MCP Servers
+### 5. Detect Search Sources
 
-Test availability of each MCP server:
+Test availability of each search source:
 
+**MCP servers** (call each with a test query):
 - **arxiv** — call `search_papers` with "test"
 - **semantic-scholar** — call `search_paper` with "test"
 - **zotero** — call `zotero_search_items` with "test"
 
+**APIs** (test via Bash):
+- **OpenAlex** — run: `curl -s -o /dev/null -w "%{http_code}" "https://api.openalex.org/works?search=test&per_page=1"` (expect 200)
+
 Output results:
 
 ```
-MCP Servers:
-  arxiv            ✓ available
-  semantic-scholar ✓ available
+Search Sources:
+  arxiv            ✓ available (MCP)
+  semantic-scholar ✓ available (MCP)
+  openalex         ✓ available (API, no key needed)
   zotero           ✓ available / ✗ unavailable (optional)
 ```
 

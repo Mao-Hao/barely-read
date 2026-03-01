@@ -51,15 +51,33 @@ Search `library/notes/` for papers related to the concept:
 - Grep for keywords
 - If found, note paper_id and relevant passages for reference
 
-### 3. Explain
+### 3. Explain (Knowledge-First)
 
-**Explain naturally. Adapt to the concept and the user's level.** Don't force a rigid structure. Some concepts need an analogy first. Some need a formal definition. Some need a worked example. Match your approach to what works best.
+**Start from your own knowledge. Then verify.**
+
+First, explain the concept using what you know — intuition, definitions, examples. Don't search first. The user is here to learn, not to wait for API calls.
 
 Guidance (not a template):
 - Start with intuition — why does this concept exist? What problem does it solve?
 - Give precision where needed — definitions, formulas (if user wants math)
 - Connect to the user's research — how is this relevant to what they do?
 - Reference library papers if found in Step 2
+
+### 3b. Verify + Cite Real Papers
+
+After explaining, search to verify and enrich:
+- Use Semantic Scholar or arxiv MCP to find the seminal paper(s) for this concept
+- Confirm key claims are accurate (avoid hallucinated citations)
+- If verification reveals your explanation was inaccurate or incomplete, correct it explicitly: "Actually, I should clarify..." — don't silently drop the correction
+- Add real paper references with IDs:
+  ```
+  Key references:
+  - Vaswani et al. (2017) "Attention Is All You Need" [arxiv:1706.03762]
+  - ...
+  Want me to download any of these?
+  ```
+
+This "explain first, cite after" flow avoids blocking the explanation on API calls while ensuring accuracy.
 
 ### 4. Link Related Papers
 
@@ -92,5 +110,4 @@ Want to go deeper? For example:
 
 - Overly broad concept → ask which aspect to focus on
 - config missing → use defaults, suggest /br-init after
-
-ARGUMENTS: $ARGUMENTS
+- MCP unavailable for verification → explain anyway, note that citations are unverified

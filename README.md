@@ -131,10 +131,10 @@ Notes are standard markdown with relative links. Point Obsidian (or any editor) 
 ## Roadmap
 
 - [x] Core skills: search, download, read, explain
-- [ ] Knowledge management: note-taking, synthesis, cross-paper linking
-- [ ] Beyond papers: blog posts, textbook chapters, technical reports, slides
-- [ ] Zotero integration: import/sync with existing libraries
-- [ ] Workflow automation
+- [ ] Polish: OpenAlex search source, usage logging, UX improvements
+- [ ] Note format: standardized frontmatter + wiki-links (Obsidian-compatible)
+- [ ] Paper comparison (`/br-compare`)
+- [ ] Beyond papers: URL/PDF archiving + explanation
 - [ ] Publish to Claude Code plugin marketplace
 
 ## License

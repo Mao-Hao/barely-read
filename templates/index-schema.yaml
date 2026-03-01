@@ -30,7 +30,7 @@ papers:
     doi: ""                # (optional) DOI
     url: ""                # (required) arxiv or source URL
     tags: []               # (optional) topic tags for search/filter
-    status: "downloaded"   # downloaded | read | annotated
+    status: "downloaded"   # stub | pending_pdf | downloaded | read | annotated
     pdf_path: ""           # (required) relative path to PDF
     note_path: ""          # (required) relative path to note
     added_date: ""         # (auto) ISO date when paper was added
