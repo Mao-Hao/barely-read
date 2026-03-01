@@ -55,10 +55,6 @@ Search Sources:
   zotero           ✓ available / ✗ unavailable (optional)
 
 Config: config/user.yaml ✓ (unchanged)
-
-What's new in this update:
-  - OpenAlex search source (covers biology, medicine, all fields)
-  - Web search fallback when API results are sparse
 ```
 
 If `config/user.yaml` is missing, suggest running `/br-init` instead.

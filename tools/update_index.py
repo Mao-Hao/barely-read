@@ -29,6 +29,21 @@ def sanitize_paper_id(paper_id: str) -> str:
     return paper_id.replace("/", "_")
 
 
+def _status_rank(status: str) -> int:
+    """Return rank of a status value. Unknown statuses get rank 0 (lowest)."""
+    try:
+        return VALID_STATUSES.index(status)
+    except ValueError:
+        return 0
+
+
+def _default_url(paper_id: str) -> str:
+    """Generate a default URL for a paper based on its ID format."""
+    if paper_id.startswith("10."):
+        return f"https://doi.org/{paper_id.replace('_', '/')}"
+    return f"https://arxiv.org/abs/{paper_id}"
+
+
 def _default_index() -> IndexData:
     return {"papers": {}}
 
@@ -81,7 +96,7 @@ def add_paper(
         "authors": authors,
         "year": year,
         "doi": doi,
-        "url": url or f"https://arxiv.org/abs/{paper_id}",
+        "url": url or _default_url(paper_id),
         "tags": tags or [],
         "status": status,
         "pdf_path": f"library/papers/{safe_id}.pdf",
@@ -103,7 +118,7 @@ def add_paper(
         if tags:
             merged["tags"] = sorted(set(existing.get("tags", []) + tags))
         # Don't regress status: keep the more advanced one
-        if VALID_STATUSES.index(existing.get("status", "stub")) > VALID_STATUSES.index(status):
+        if _status_rank(existing.get("status", "stub")) > _status_rank(status):
             pass  # keep existing status
         else:
             merged["status"] = status

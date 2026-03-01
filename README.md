@@ -4,11 +4,11 @@ Academic research assistant as a Claude Code skill pack. Search, download, read,
 
 ## What It Does
 
-You talk to Claude. Claude talks to arxiv and Semantic Scholar. Papers get downloaded, explained, and organized into markdown notes you actually own.
+You talk to Claude. Claude talks to arxiv, Semantic Scholar, and OpenAlex. Papers get downloaded, explained, and organized into markdown notes you actually own.
 
 ```
 you: /br-search "multi-agent reinforcement learning"
-  → ranked results from arxiv + Semantic Scholar
+  → ranked results from arxiv + Semantic Scholar + OpenAlex
 
 you: download #3
   → PDF saved, stub note created, index updated
@@ -69,7 +69,7 @@ All follow-up interaction is natural language. You don't need to remember comman
 ```
 /br-init                       → configure your research profile (once)
         ↓
-/br-search "query"             → search arxiv + Semantic Scholar
+/br-search "query"             → search arxiv + Semantic Scholar + OpenAlex
         ↓                        returns numbered results
 "download #3"                  → download PDF + create stub note
         ↓
@@ -100,7 +100,8 @@ Then run `/br-init`. It will check dependencies (install [uv](https://docs.astra
 | Command | What it does |
 |---------|-------------|
 | `/br-init` | First-time setup: research profile, preferences, MCP detection |
-| `/br-search [query]` | Search papers across arxiv + Semantic Scholar |
+| `/br-search [query]` | Search papers across arxiv + Semantic Scholar + OpenAlex |
+| `/br-update` | Refresh environment after updates (re-check search sources) |
 | `/br-download [id]` | Download PDF, create stub note, update library index |
 | `/br-read [id]` | Interactive paper walkthrough with adjustable depth |
 | `/br-explain [concept]` | Explain a concept tailored to your background |
@@ -109,7 +110,7 @@ Commands accept flexible input — paper titles, search result numbers, fuzzy re
 
 ## How It Works
 
-BR is a set of [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/skills) — markdown instruction files that teach Claude domain-specific workflows. When you run `/br-search`, Claude reads the skill definition, calls MCP servers (arxiv, Semantic Scholar), and formats the results.
+BR is a set of [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/skills) — markdown instruction files that teach Claude domain-specific workflows. When you run `/br-search`, Claude reads the skill definition, calls MCP servers (arxiv, Semantic Scholar) and APIs (OpenAlex), and formats the results. If API results are sparse, it falls back to web search automatically.
 
 No custom runtime. No API wrapper. Claude Code *is* the runtime.
 
@@ -131,7 +132,8 @@ Notes are standard markdown with relative links. Point Obsidian (or any editor) 
 ## Roadmap
 
 - [x] Core skills: search, download, read, explain
-- [ ] Polish: OpenAlex search source, usage logging, UX improvements
+- [x] OpenAlex as 3rd search source + web search fallback
+- [ ] Polish: usage logging, UX improvements
 - [ ] Note format: standardized frontmatter + wiki-links (Obsidian-compatible)
 - [ ] Paper comparison (`/br-compare`)
 - [ ] Beyond papers: URL/PDF archiving + explanation

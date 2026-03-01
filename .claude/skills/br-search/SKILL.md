@@ -62,28 +62,34 @@ Call all search sources in parallel:
 - fields: "paperId,title,abstract,authors,year,citationCount,url,externalIds"
 
 **OpenAlex API** (direct HTTP via Bash, no MCP needed):
-- Endpoint: `https://api.openalex.org/works?search={query}&per_page=10&sort=relevance_score:desc`
+- Use `curl -G --data-urlencode "search={query}" "https://api.openalex.org/works" -d "per_page={half of search.max_results, default 10}" -d "sort=relevance_score:desc"`
 - No API key required, 100k requests/day
-- Response structure: results are in the `results` array (not top-level)
-- Field mapping: `display_name` (title), `authorships[].author.display_name` (authors), `publication_year`, `doi` (full URL format: `https://doi.org/...` — strip prefix for matching), `cited_by_count`, `topics` (not `concepts` — deprecated 2024), `open_access.is_oa`
-- Call strategy: **always call in parallel** with arxiv + S2 for maximum coverage. Especially valuable for non-CS fields, interdisciplinary searches, and citation analysis
+- Response: JSON with `results` array. Fields may be null — handle gracefully.
+- Field mapping: `display_name` (title), `authorships[].author.display_name` (authors), `publication_year`, `doi` (may be null; when present, full URL format `https://doi.org/...`), `cited_by_count`, `topics` (not `concepts` — deprecated 2024), `open_access.is_oa`
+- If curl fails or returns non-200, skip OpenAlex silently and continue with other sources.
 
 For multi-topic requests, search each topic separately.
 
-**Web Search Fallback**: If API results are sparse (< 3 papers) or the user's query is broad/exploratory, supplement with WebSearch:
+**Web Search Fallback**: If total unique results after dedup < 3, or if any API source returned 0 results, supplement with WebSearch:
 - Search `site:scholar.google.com "{query}"` or `site:arxiv.org "{query}"`
-- Extract paper titles and IDs from results
-- Merge into the API results before dedup
+- Only include results that have an arxiv ID, DOI, or appear on recognized academic sites (arxiv.org, semanticscholar.org, openreview.net). Discard blog posts, course pages, news articles.
+- Merge into the API results before final ranking
 
 This is a personal tool with low volume — web search as a supplementary source is fine.
 
 ### 3. Merge + Dedup + Rank
 
-1. **Dedup**: match by arxiv ID or DOI (normalize DOIs by stripping `https://doi.org/` prefix before comparing), keep the richer entry
-2. **Rank** by:
-   - Semantic relevance to user's `research.topics` and `research.keywords`
-   - Citation count (from Semantic Scholar)
-   - Recency (weighted if user prefers recent)
+1. **Dedup** (try each method in order):
+   - Match by arxiv ID (from arXiv results or Semantic Scholar `externalIds.ArXiv`)
+   - Match by DOI — normalize first: strip any `https://doi.org/`, `http://doi.org/`, `http://dx.doi.org/`, `doi:` prefix, then lowercase
+   - If neither ID matches, compare titles: lowercase + strip punctuation. If near-identical, treat as duplicate.
+   - When duplicates found, **merge fields** from all matching entries (don't just pick one): prefer Semantic Scholar for citation count, arXiv for abstract and categories, OpenAlex for open access status and topics. Keep the most complete author list.
+
+2. **Rank** by (in priority order):
+   - **Primary**: semantic relevance to user's `research.topics` and `research.keywords`
+   - **Tiebreaker**: citation count
+   - **Recency boost**: if `search.prefer_recent` is true, papers from the last 2 years get a significant boost
+
 3. **Annotate**: one-sentence explanation of relevance to user's research per paper
 
 ### 4. Present Results
@@ -118,9 +124,11 @@ If the user asks about a specific paper:
 
 ## Error Handling
 
-- arxiv MCP unavailable → use Semantic Scholar only, inform user
-- Semantic Scholar MCP unavailable → use arxiv only, inform user
-- Both unavailable → fall back to WebSearch on arxiv.org and Google Scholar, note limited functionality
+- arxiv MCP unavailable → use Semantic Scholar + OpenAlex, inform user
+- Semantic Scholar MCP unavailable → use arxiv + OpenAlex, inform user
+- Semantic Scholar rate limited (429) → skip S2 for this search, use other sources
+- OpenAlex API error (non-200, timeout, parse failure) → skip silently, use other sources
+- All API sources unavailable → fall back to WebSearch on arxiv.org and Google Scholar, note limited functionality
 - No results → suggest adjusting terms or broadening time range
 - config/user.yaml missing → skip personalized ranking, suggest running /br-init after
 - No search terms available (no arguments + no config) → ask user: "What topic should I search for?"

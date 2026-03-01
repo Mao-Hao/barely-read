@@ -7,7 +7,7 @@ Academic research assistant built on LLM CLI. Helps you search, download, read, 
 | Command | Description |
 |---------|-------------|
 | `/br-init` | First-time setup: configure your research profile |
-| `/br-search [query]` | Search papers across arxiv + Semantic Scholar |
+| `/br-search [query]` | Search papers across arxiv + Semantic Scholar + OpenAlex |
 | `/br-download [paper]` | Download paper(s), create stub notes, update library index |
 | `/br-read [paper]` | Interactive paper walkthrough with adjustable depth |
 | `/br-explain [concept]` | Explain a concept tailored to your background |
